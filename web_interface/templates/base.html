@@ -1,0 +1,31 @@
+<!doctype html>
+<html> 
+<head> 
+  <title>{% block title %}Home{% endblock %} | CodeSport</title>
+  <link rel="stylesheet" href="{{ STATIC_URL }}css/style.css" />
+</head>
+<body>
+  {% load flatpages %}
+  <header>
+    <h1 class="main-heading">Code Sport</h1>    
+    <nav>    
+    {% get_flatpages as flatpages %}
+    <ul>
+      {% for page in flatpages %}
+      <li><a href="{{ page.url }}">{{ page.title }}</a></li>
+      {% endfor %}
+      <li><a href="{% url contest:index %}">Contest</a></li>
+    </ul>
+  </nav>
+  </header>
+  <section>
+    <h1>{% block heading %}{% endblock %}</h1>
+    {% block content %}{% endblock %}
+  </section>
+  <footer>
+  <p>
+    <a href="{% url admin:index %}">Admin</a>
+  </p>
+  </footer>
+</body>
+</html>
