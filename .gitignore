@@ -7,5 +7,6 @@
 *.pyc
 *.sqlite
 *.swp
+web_interface/media/
 web_interface/settings.py
 web_interface/static-deploy

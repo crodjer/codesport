@@ -1,6 +1,3 @@
-#Development#
-These are some steps and tips for starting to develop this. 
-
 ##Installation##
 
  - Use django-dev version. This project uses some snapshot features provided in latest django releases. 
@@ -8,4 +5,6 @@ These are some steps and tips for starting to develop this.
  - Run `./manage.py syncdb --noinput`. This loads the default data into the database from the initial data json dump.
  - User - Pass: admin - admin, test - test.
 
+##Development##
 
+ - Currently the evaluator queuing system (will use celery in future), wont be included, so use some dummy stuff for working this out. 

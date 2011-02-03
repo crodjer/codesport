@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Contest-{{ problem }}{% endblock %}
+{% block heading %}{{ problem }}{% endblock %}
+{% block content %}
+{% if problem.summary %}
+<p>
+  {{ problem.summary }}
+</p>
+{% endif %}
+<hr/>
+<p>
+  {{ problem.content }}
+</p>
+{% endblock %}

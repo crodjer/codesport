@@ -138,6 +138,18 @@ INSTALLED_APPS = (
     'contest',
 )
 
+PROBLEM_LEVEL_CHOICES = ( 
+    'easy', 
+    'normal', 
+    'hard'
+)
+
+TESTCASE_WEIGHTAGE_CHOICES = (
+    'low',
+    'medium',
+    'high',
+)
+
 # A sample logging configuration. The only tangible logging
 # performed by this configuration is to send an email to
 # the site admins on every HTTP 500 error.
