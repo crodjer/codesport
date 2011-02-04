@@ -4,13 +4,13 @@ from django.core.files.uploadedfile import SimpleUploadedFile as UpFile
 from django.test import TestCase
 import settings
 from contest.models import *
+files_path = os.path.join(settings.MEDIA_ROOT, 'tests')
 
 class ModelsTest(TestCase):
-    testuser = User.objects.get_or_create(username='test')[0]
-    files_path = os.path.join(settings.MEDIA_ROOT, 'tests')    
-    input_file = open('%s/sort.in' %(files_path))
-    output_file = open('%s/sort.out' %(files_path))
-    program_file = open('%s/sort.c' %(files_path))
+    testuser = User.objects.get_or_create(username='test')[0]    
+
+    def get_file(self, extension):
+        return open('%s/sort.%s' %(files_path, extension))
     
     def create_problem(self):        
         problem = Problem(title='test', slug='test', summary='summary',
@@ -33,10 +33,12 @@ class ModelsTest(TestCase):
         problem.delete()
 
     def create_testpair(self, *args, **kwargs):
-        testpair = TestPair(input_file=UpFile(self.input_file.name,
-                                              self.input_file.read()),
-                            output_file=UpFile(self.output_file.name,
-                                               self.output_file.read()),
+        input_file = self.get_file('in')
+        output_file = self.get_file('out')
+        testpair = TestPair(input_file=UpFile(input_file.name,
+                                              input_file.read()),
+                            output_file=UpFile(output_file.name,
+                                               output_file.read()),
                             problem=self.problem, *args, **kwargs)
         testpair.save()        
         return testpair        
@@ -46,17 +48,15 @@ class ModelsTest(TestCase):
         Testing the problem input output test pairs 
         '''
         self.problem = self.create_problem()
-        problem = self.problem
-        for i in range(1,5):
-            self.create_testpair(weightage=i)
+        problem = self.problem        
+        testpair1 = self.create_testpair(weightage=2)                    
+        self.failUnlessEqual(problem.marks_coefficient, problem.marks/2)
+        testpair2 = self.create_testpair(weightage=1)                    
+        self.failUnlessEqual(problem.marks_coefficient, problem.marks/3)
+        testpair3 = self.create_testpair(weightage=3)                    
+        self.failUnlessEqual(problem.marks_coefficient, problem.marks/6)
 
-        testpairs = TestPair.objects.filter(problem=problem)
-        marks_sum = 0
-        for testpair in testpairs:            
-            marks_sum += testpair.marks()
-            
-        self.failUnlessEqual(problem.marks_coefficient, problem.marks/10)    
-        testpairs.delete()
-##        for testpair in testpairs:                        
-##            testpair.delete()
-            
+        #Delete the testpair files
+        testpair1.delete_files()
+        testpair2.delete_files()
+        testpair3.delete_files()

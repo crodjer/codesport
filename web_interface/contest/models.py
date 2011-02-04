@@ -109,12 +109,12 @@ class TestPair(AbstractModel):
     problem = models.ForeignKey(Problem, 
                                 verbose_name=_('associated problem'), 
                                 related_name='testpairs')
-    input_file = models.FileField(_('input file'), upload_to='inputs/')
-    output_file = models.FileField(_('output file'), upload_to='outputs/')
+    input_file = models.FileField(_('input file'), upload_to='inputs')
+    output_file = models.FileField(_('output file'), upload_to='outputs')
     weightage = models.IntegerField(_('weightage'),
                                     choices=weightage_choices())    
-    soft_timelimit = models.FloatField(_('soft time limit'), default=0.5)
-    hard_timelimit = models.FloatField(_('hard time limit'), default=5)    
+    soft_time_limit = models.FloatField(_('soft time limit'), default=0.5)
+    hard_time_limit = models.FloatField(_('hard time limit'), default=5)    
     is_mandatory = models.BooleanField(_('is mandatory'))    
     is_public = models.BooleanField(_('is public'))
 
@@ -134,3 +134,7 @@ class TestPair(AbstractModel):
         '''
         super(TestPair, self).save()
         self.problem.set_marks_coefficient()
+
+    def delete_files(self):
+        self.input_file.delete(save=False)
+        self.output_file.delete(save=False) 
