@@ -36,7 +36,7 @@ class AbstractModel(models.Model):
 
 class Contestant(User):
     '''
-    A  participant of the coding contest. A proxy model of auth's user
+    A  participant of the coding contest. A proxy model of auth's user.
     '''
     class Meta:
         proxy=True
@@ -63,8 +63,8 @@ class Problem(AbstractModel):
     marks = models.FloatField(_('total marks'))    
     publisher = models.ForeignKey(User, verbose_name=_('publisher'))   
     is_public = models.BooleanField(_('is_public'))
-    marks_coefficient = models.FloatField(_('marks coefficient'),
-                                          blank=True, null=True,
+    marks_factor = models.FloatField(_('marks distribution factor'),
+                                          blank=True, default=0,
                                           editable=False)
     
     def __unicode__(self):
@@ -74,22 +74,24 @@ class Problem(AbstractModel):
         return reverse('contest:problem',
                        kwargs={'problem_slug':self.slug})
 
-    def set_marks_coefficient(self):
+    def set_marks_factor(self):
         '''
-        Calculates the coefficient to be multiplied with test case weight-
+        Calculates the factor to be multiplied with test case weight-
         age to obtain case-wise marks such that the total sum would be
         equal to the total marks alloted to the problem.
         '''
         testpairs = self.testpairs
-        weightage_sum = testpairs.aggregate(Sum('weightage'))['weightage__sum']
+        weightage_sum = testpairs.aggregate(Sum('weightage'))['weightage__sum']        
         if weightage_sum:
-            marks_coefficient = self.marks/weightage_sum
-            if not self.marks_coefficient==marks_coefficient:
-                self.marks_coefficient = marks_coefficient
+            marks_factor = round(self.marks/weightage_sum, 3)
+            if not self.marks_factor==marks_factor:
+                self.marks_factor = marks_factor
                 self.save()
-            return self.marks_coefficient
-
-        return None
+            return self.marks_factor
+        elif self.marks_factor:
+            self.marks_factor = 0
+            self.save()            
+        return 0
                 
 class TestPair(AbstractModel):
     '''
@@ -119,22 +121,53 @@ class TestPair(AbstractModel):
     is_public = models.BooleanField(_('is public'))
 
     def __unicode__(self):
-        return 'Test for "%s", Weightage: %s' %(unicode(self.problem), self.get_weightage_display())
-    def marks(self):
+        return 'Test Pair for "%s", Weightage: %s, Marks: %s' \
+                %(unicode(self.problem), self.get_weightage_display(),
+                  self.marks_alloted)
+    
+    def delete(self, *args, **kwargs):
+        '''
+        Delete override.
+        Updates the problem marks factor as a testpair is deleted
+        '''
+        return_obj = super(TestPair, self).delete(*args, **kwargs)
+        self.problem.set_marks_factor()
+        return return_obj
+
+
+    def _marks_alloted(self):
         '''
         Calculates the marks alloted to the case through the problem's
-        marks_coefficient
+        marks_factor
         '''
-        return round(self.weightage*self.problem.marks_coefficient, 3)
+        return round(self.weightage * self.problem.marks_factor, 3)
+
+    def marks_obtained_by_time(self, time_taken):
+        if time_taken <= self.soft_time_limit:
+            return self.marks_alloted
+
+        elif time_taken <= self.hard_time_limit:
+            exceed_time = time_taken - self.soft_time_limit
+            max_exceed_time = self.hard_time_limit - self.soft_time_limit            
+            exceed_factor = (max_exceed_time-exceed_time)/max_exceed_time            
+            return round(self.marks_alloted * exceed_factor, 3)
+        else:
+            return 0
         
-    def save(self):
+    def save(self, *args, **kwargs):
         '''
         Save override.
-        Updates the problem marks coefficient as the new testpair is saved        
+        Updates the problem marks factor as the new testpair is saved        
         '''
-        super(TestPair, self).save()
-        self.problem.set_marks_coefficient()
+        return_obj = super(TestPair, self).save(*args, **kwargs)
+        self.problem.set_marks_factor()
+        return return_obj
 
     def delete_files(self):
+        '''
+        Delete the files from file fields
+        '''
         self.input_file.delete(save=False)
         self.output_file.delete(save=False) 
+
+    marks_alloted = property(_marks_alloted)   
