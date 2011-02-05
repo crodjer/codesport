@@ -18,7 +18,7 @@ DEFAULT_PROBLEM_LEVEL_CHIOCES = (
 )
 
 ##The default set of choices for testpair weightage level
-DEFAULT_testpair_WEIGHTAGE_CHIOCES = (
+DEFAULT_TESTPAIR_WEIGHTAGE_CHIOCES = (
     'low', 
     'medium', 
     'high',
@@ -104,7 +104,7 @@ class TestPair(AbstractModel):
         choices set or a default set. 
         '''        
         choices_set = getattr(settings, 'testpair_WEIGHTAGE_CHOICES', 
-                              DEFAULT_testpair_WEIGHTAGE_CHIOCES)
+                              DEFAULT_TESTPAIR_WEIGHTAGE_CHIOCES)
         choices = tuple(enumerate(choices_set, 1))
         return choices
 
