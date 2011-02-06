@@ -10,3 +10,8 @@
 web_interface/media/
 web_interface/settings.py
 web_interface/static-deploy
+web_interface/.epio-app
+web_interface/epio.ini
+web_interface/production_settings.py
+web_interface/requirements.txt
+

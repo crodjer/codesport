@@ -8,9 +8,10 @@
   {% load flatpages %}
   <header>
     <h1 class="main-heading">Code Sport</h1>    
-    <nav>    
-    {% get_flatpages as flatpages %}
+    <nav>        
     <ul>
+      <li><a href="/">Home</a></li>
+      {% get_flatpages '/main/' as flatpages %}
       {% for page in flatpages %}
       <li><a href="{{ page.url }}">{{ page.title }}</a></li>
       {% endfor %}
