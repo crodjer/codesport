@@ -1,4 +1,4 @@
-from contest.models import Problem, TestPair
+from main.models import Problem, TestPair
 from django.contrib import admin
 
 
@@ -20,10 +20,10 @@ class TestPairInline(admin.TabularInline):
 	extra = 5
 class ProblemAdmin(admin.ModelAdmin):
     fieldsets = [
-		('Details',  {'fields': ['title', 'slug', 'summary',
-                                         'contents', 'level',
+		(None,  {'fields': ['title', 'slug', 'summary',
+                                         'statement', 'level',
                                          'marks']}),
-                ('Status',  {'fields': ['is_public', 'marks_factor']}),
+        ('Meta',  {'fields': ['is_public', 'marks_factor']}),
                 
 	]
     readonly_fields = ('marks_factor',)

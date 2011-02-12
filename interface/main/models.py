@@ -1,14 +1,9 @@
 from django.db import models
 from django.db.models import Sum
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext_lazy as _
 import settings
-
-'''
-TODO: The TestPair file fields don't get deleted from file system on
-object deletion.
-'''
 
 ##The default set of choices for coding problem
 DEFAULT_PROBLEM_LEVEL_CHIOCES = (
@@ -34,13 +29,61 @@ class AbstractModel(models.Model):
         abstract=True
         get_latest_by = 'updated_on'
 
-class Contestant(User):
-    '''
-    A  participant of the coding contest. A proxy model of auth's user.
-    '''
-    class Meta:
-        proxy=True
-    
+class Error(models.Model):
+    title = models.CharField(_('title'), max_length=100)
+    description = models.TextField(_('error'), max_length=300)
+
+class Language(models.Model):
+    name = models.CharField(_('name'), max_length=100)
+    ext = models.CharField(_('extension'), max_length=15)
+    errors = models.ManyToManyField(Error, related_name='languages', 
+                                    verbose_name=_('possible errors'))
+    execution_command = models.TextField(_('execution command'))
+    is_compiled = models.BooleanField(_('is compiled language'))
+    compilation_command = models.TextField(_('compilation command'))
+
+class Tag(models.Model):
+    name = models.CharField(_('name'), max_length=100)
+    wiki = models.TextField(_('wiki'))
+
+    def __unicode__(self):
+        return self.name
+
+class Category(AbstractModel):
+    title = models.CharField(_('title'), max_length=100)
+    slug = models.SlugField(_('slug'))
+    description = models.TextField(_('description'))
+    is_public = models.BooleanField(_('is public'))
+    is_timed = models.BooleanField(_('is a timed contest'))
+    is_teamed = models.BooleanField(_('is team based'))
+    target_groups = models.ManyToManyField(Group, 
+                                          verbose_name='target groups')
+    start_time = models.DateTimeField(_('start time'), blank=True, 
+                                      null=True) 
+    end_time = models.DateTimeField(_('end time'), blank=True,
+                                    null=True)
+
+    def __unicode__(self):
+        return "%s" %(self.title)
+
+    def get_absoulte_url(self):
+        return reverse('main:category',
+                       kwargs={'category_slug':self.slug})
+
+    def user_can_participate(self, user):
+        for group in self.target_groups:
+            if user in group.user_set.all():
+                return True
+        return False
+
+class Team(AbstractModel):
+    name = models.CharField(_('name'), max_length=100)
+    coders = models.ManyToManyField(User, related_name='teams',
+                                    verbose_name=_('coders'))     
+    category = models.ForeignKey(Category, verbose_name=_('category'),
+                                 related_name='teams')
+
+
 class Problem(AbstractModel):
     '''
     A problem for the coding contest
@@ -58,11 +101,16 @@ class Problem(AbstractModel):
     title = models.CharField(_('title'), max_length=100)
     slug = models.SlugField(_('slug'), max_length=100)
     summary = models.TextField(_('summary'), blank=True)
-    contents = models.TextField(_('contents'))
+    statement = models.TextField(_('Full Statement'))
+    languages = models.ManyToManyField(Language, verbose_name=_('languages'))
+    tags = models.ManyToManyField(Tag, verbose_name=_('tags'))
     level = models.IntegerField(_('level'), choices=level_choices())
     marks = models.FloatField(_('total marks'))    
-    publisher = models.ForeignKey(User, verbose_name=_('publisher'))   
-    is_public = models.BooleanField(_('is_public'))
+    category = models.ForeignKey(Category, verbose_name = _('category'),
+                                related_name='problems')
+    author = models.ForeignKey(User, verbose_name=_('author'))
+    is_public = models.BooleanField(_('is public'))
+    is_open = models.BooleanField(_('is open'))
     marks_factor = models.FloatField(_('marks distribution factor'),
                                           blank=True, default=0,
                                           editable=False)
@@ -81,7 +129,7 @@ class Problem(AbstractModel):
         equal to the total marks alloted to the problem.
         '''
         testpairs = self.testpairs
-        weightage_sum = testpairs.aggregate(Sum('weightage'))['weightage__sum']        
+        weightage_sum = testpairs.aggregate(Sum('weightage'))['weightage__sum']
         if weightage_sum:
             marks_factor = round(self.marks/weightage_sum, 3)
             if not self.marks_factor==marks_factor:
@@ -118,7 +166,7 @@ class TestPair(AbstractModel):
     soft_time_limit = models.FloatField(_('soft time limit'), default=0.5)
     hard_time_limit = models.FloatField(_('hard time limit'), default=5)    
     is_mandatory = models.BooleanField(_('is mandatory'))    
-    is_public = models.BooleanField(_('is public'))
+    is_samepls =  models.BooleanField(_('is sample'))
 
     def __unicode__(self):
         return 'Test Pair for "%s", Weightage: %s, Marks: %s' \
@@ -142,14 +190,14 @@ class TestPair(AbstractModel):
         '''
         return round(self.weightage * self.problem.marks_factor, 3)
 
-    def marks_obtained_by_time(self, time_taken):
+    def marks_obtained(self, time_taken):
         if time_taken <= self.soft_time_limit:
             return self.marks_alloted
 
         elif time_taken <= self.hard_time_limit:
             exceed_time = time_taken - self.soft_time_limit
-            max_exceed_time = self.hard_time_limit - self.soft_time_limit            
-            exceed_factor = (max_exceed_time-exceed_time)/max_exceed_time            
+            max_exceed_time = self.hard_time_limit - self.soft_time_limit
+            exceed_factor = (max_exceed_time-exceed_time)/max_exceed_time
             return round(self.marks_alloted * exceed_factor, 3)
         else:
             return 0
@@ -171,3 +219,21 @@ class TestPair(AbstractModel):
         self.output_file.delete(save=False) 
 
     marks_alloted = property(_marks_alloted)   
+
+class Submission(AbstractModel):
+    problem = models.ForeignKey(Problem, verbose_name=_('problem'),
+                                related_name='submissions')
+    language = models.ForeignKey(Language, verbose_name=_('language'))
+    code = models.FileField(_('code'), upload_to='codes')
+    code_filename = models.CharField(_('code filename'), editable=False,
+                                    max_length=200)
+    coder = models.ForeignKey(User, verbose_name=_('coder'),
+                              related_name='submissions')
+    is_latest = models.BooleanField(_('is latest'), default=True)
+    #process 
+    marks = models.FloatField(_('obtained marks'))
+    is_correct = models.BooleanField(_('is fully correct'), default=False)
+    errors = models.ManyToManyField(Error, verbose_name=('errors'))
+    similar = models.ManyToManyField('self', 
+                                    verbose_name=_('similar submissions'))
+
